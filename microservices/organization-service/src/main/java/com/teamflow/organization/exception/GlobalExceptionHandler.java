@@ -45,6 +45,18 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(OrganizationNotFoundException.class)
+    public ResponseEntity<ApiResponse<String>> handleOrganizationNotFound(OrganizationNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicateOrganizationException.class)
+    public ResponseEntity<ApiResponse<String>> handleDuplicateOrganization(DuplicateOrganizationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<String>> handleGenericException(Exception ex) {
         log.error("Unhandled exception occurred", ex);
