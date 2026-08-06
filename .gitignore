@@ -1,8 +1,12 @@
-target/
-*.class
+# IntelliJ IDEA
 .idea/
-*.iml
-.vscode/
-.DS_Store
+
+# Maven
+target/
+
+# Logs
 *.log
-.env
+
+# OS files
+.DS_Store
+Thumbs.db
