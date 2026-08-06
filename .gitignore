@@ -1,12 +1,8 @@
-# IntelliJ IDEA
-.idea/
-
-# Maven
 target/
-
-# Logs
-*.log
-
-# OS files
+*.class
+.idea/
+*.iml
+.vscode/
 .DS_Store
-Thumbs.db
+*.log
+.env
