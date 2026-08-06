@@ -1,0 +1,37 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: identity-service
+              uri: lb://identity-service
+              predicates:
+                - Path=/api/v1/auth/**,/api/v1/employees/**,/api/v1/departments/**,/api/v1/teams/**,/api/v1/roles/**,/api/v1/permissions/**,/api/v1/leaves/**
+            - id: project-service
+              uri: lb://project-service
+              predicates:
+                - Path=/api/v1/projects/**,/api/v1/sprints/**,/api/v1/tasks/**,/api/v1/meetings/**,/api/v1/worklogs/**,/api/v1/bugs/**,/api/v1/clients/**
+            - id: ai-service
+              uri: lb://ai-service
+              predicates:
+                - Path=/api/v1/ai/**,/api/v1/dashboard/**,/api/v1/analytics/**,/api/v1/notifications/**
+          discovery:
+            locator:
+              enabled: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_HOSTNAME:localhost}:8761/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
