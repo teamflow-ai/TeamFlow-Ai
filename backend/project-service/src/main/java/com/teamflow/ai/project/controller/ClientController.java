@@ -8,7 +8,7 @@ import com.teamflow.ai.project.dto.request.UpdateClientRequest;
 import com.teamflow.ai.project.dto.response.ClientResponse;
 import com.teamflow.ai.project.service.ClientService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.Parameter;   
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
