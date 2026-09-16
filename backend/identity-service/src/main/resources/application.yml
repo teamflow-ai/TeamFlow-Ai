@@ -1,0 +1,159 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: identity-service
+
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DB:teamflow_identity}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&createDatabaseIfNotExist=true
+    username: ${MYSQL_USER:root}
+    # No default. A shipped password is how credentials reach production by accident.
+    password: cdac
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  jpa:
+    # Flyway owns the schema. Hibernate only validates that the mapping agrees with
+    # it, which turns an entity/DDL mismatch into a startup failure rather than a
+    # silent divergence discovered in production.
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          batch_size: 50
+          time_zone: UTC
+        order_inserts: true
+        order_updates: true
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    # Demo seed data lives in a separate location that only the dev profile adds,
+    # so a production deployment can never receive a known-password account.
+    locations: classpath:db/migration
+
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://localhost:27017/teamflow_identity_logs}
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 2s
+          max-attempts: 3
+          multiplier: 2.0
+        default-requeue-rejected: false
+
+  cache:
+    type: ${SPRING_CACHE_TYPE:none}
+    redis:
+      time-to-live: 600000
+      cache-null-values: false
+
+teamflow:
+  jwt:
+    secret: ${TEAMFLOW_JWT_SECRET:4Fv8Qn7LpX2mRs9ZaB6KdE1WtY5UhJ3NcP8GxL0VmR2QaF7S}
+    issuer: teamflow.ai
+    access-token-expiration: 15m
+    refresh-token-expiration: 7d
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    root: INFO
+    com.teamflow.ai: DEBUG
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+---
+# Local development: seeds the demo tenant and a known administrator.
+spring:
+  config:
+    activate:
+      on-profile: dev
+  flyway:
+    locations: classpath:db/migration,classpath:db/demo
+logging:
+  level:
+    com.teamflow.ai: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: jdbc:mysql://mysql:3306/teamflow_identity?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+  data:
+    mongodb:
+      uri: mongodb://mongodb:27017/teamflow_identity_logs
+    redis:
+      host: redis
+  rabbitmq:
+    host: rabbitmq
+  flyway:
+    locations: classpath:db/migration,classpath:db/demo
+eureka:
+  client:
+    service-url:
+      defaultZone: http://service-registry:8761/eureka/
+
+---
+# Production: no demo seed data, no Swagger, terse logging.
+spring:
+  config:
+    activate:
+      on-profile: prod
+  jpa:
+    show-sql: false
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
+logging:
+  level:
+    root: WARN
+    com.teamflow.ai: INFO

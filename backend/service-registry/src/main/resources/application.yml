@@ -1,0 +1,47 @@
+server:
+  port: 8761
+
+spring:
+  application:
+    name: service-registry
+
+eureka:
+  instance:
+    hostname: ${EUREKA_HOSTNAME:localhost}
+  client:
+    # The registry does not register with, or fetch from, itself.
+    register-with-eureka: false
+    fetch-registry: false
+    service-url:
+      defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
+  server:
+    # Self-preservation is disabled in dev so a stopped service disappears promptly.
+    # It must be re-enabled in production, where a network blip should not evict
+    # healthy instances wholesale.
+    enable-self-preservation: ${EUREKA_SELF_PRESERVATION:false}
+    eviction-interval-timer-in-ms: 5000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.netflix.eureka: WARN
+    com.netflix.discovery: WARN
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+eureka:
+  instance:
+    hostname: service-registry
+  server:
+    enable-self-preservation: true

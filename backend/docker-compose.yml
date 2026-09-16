@@ -1,0 +1,203 @@
+# =====================================================================
+# TeamFlow.AI - full local stack
+#
+#   docker compose up --build
+#
+# Start-up is ordered by health checks, not by `depends_on` alone: a
+# container being "started" says nothing about MySQL being ready to accept
+# connections, and services would otherwise crash-loop on first boot.
+# =====================================================================
+
+services:
+
+  # ---------------- infrastructure ----------------
+
+  mysql:
+    image: mysql:8
+    container_name: teamflow-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-teamflow}
+      # Both service schemas are created up front; Flyway then owns their contents.
+      MYSQL_DATABASE: teamflow_identity
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_PASSWORD:-teamflow}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [teamflow]
+
+  mongodb:
+    image: mongo:7
+    container_name: teamflow-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [teamflow]
+
+  redis:
+    image: redis:7-alpine
+    container_name: teamflow-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [teamflow]
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: teamflow-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"   # management console
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks: [teamflow]
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: teamflow-mailhog
+    ports:
+      - "1025:1025"   # SMTP - ai-service sends here
+      - "8025:8025"   # web UI - view every notification email sent locally
+    networks: [teamflow]
+
+  # ---------------- platform ----------------
+
+  service-registry:
+    build:
+      context: .
+      dockerfile: service-registry/Dockerfile
+    container_name: teamflow-registry
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8761/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    networks: [teamflow]
+
+  identity-service:
+    build:
+      context: .
+      dockerfile: identity-service/Dockerfile
+    container_name: teamflow-identity
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-teamflow}
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      TEAMFLOW_JWT_SECRET: ${TEAMFLOW_JWT_SECRET:?TEAMFLOW_JWT_SECRET must be set - copy .env.example to .env}
+    ports:
+      - "8081:8081"
+    depends_on:
+      mysql: {condition: service_healthy}
+      mongodb: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      rabbitmq: {condition: service_healthy}
+      service-registry: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks: [teamflow]
+
+  project-service:
+    build:
+      context: .
+      dockerfile: project-service/Dockerfile
+    container_name: teamflow-project
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-teamflow}
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      TEAMFLOW_JWT_SECRET: ${TEAMFLOW_JWT_SECRET:?TEAMFLOW_JWT_SECRET must be set}
+    ports:
+      - "8082:8082"
+    depends_on:
+      mysql: {condition: service_healthy}
+      rabbitmq: {condition: service_healthy}
+      service-registry: {condition: service_healthy}
+    networks: [teamflow]
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: ai-service/Dockerfile
+    container_name: teamflow-ai
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      TEAMFLOW_JWT_SECRET: ${TEAMFLOW_JWT_SECRET:?TEAMFLOW_JWT_SECRET must be set}
+      TEAMFLOW_AI_PROVIDER: ${TEAMFLOW_AI_PROVIDER:-rule-based}
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+    ports:
+      - "8083:8083"
+    depends_on:
+      mongodb: {condition: service_healthy}
+      rabbitmq: {condition: service_healthy}
+      service-registry: {condition: service_healthy}
+      mailhog: {condition: service_started}
+    networks: [teamflow]
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: teamflow-gateway
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      TEAMFLOW_JWT_SECRET: ${TEAMFLOW_JWT_SECRET:?TEAMFLOW_JWT_SECRET must be set}
+      TEAMFLOW_CORS_ORIGINS: ${TEAMFLOW_CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+    ports:
+      - "8080:8080"
+    depends_on:
+      service-registry: {condition: service_healthy}
+      identity-service: {condition: service_healthy}
+    networks: [teamflow]
+
+networks:
+  teamflow:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  mongo-data:
+  redis-data:
+  rabbitmq-data:

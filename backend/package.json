@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "jsonwebtoken": "^9.0.3",
+    "mongodb": "^7.5.0",
+    "mysql2": "^3.23.4"
+  }
+}
