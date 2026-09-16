@@ -17,6 +17,7 @@ import com.teamflow.ai.project.dto.response.TaskAttachmentResponse;
 import com.teamflow.ai.project.dto.response.TaskCommentResponse;
 import com.teamflow.ai.project.dto.response.TaskHistoryResponse;
 import com.teamflow.ai.project.dto.response.TaskResponse;
+import com.teamflow.ai.project.dto.response.TaskDependencyResponse;
 import com.teamflow.ai.project.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -103,6 +104,14 @@ public class TaskController {
         return ResponseEntity.ok(ApiResponse.success("Task status updated", response));
     }
 
+    @PatchMapping("/{id}/sprint")
+    @PreAuthorize("hasAuthority('" + PermissionNames.UPDATE_TASK + "')")
+    @Operation(summary = "Assign task to a sprint")
+    public ResponseEntity<ApiResponse<TaskResponse>> assignToSprint(
+            @PathVariable UUID id, @Valid @RequestBody com.teamflow.ai.project.dto.request.AssignSprintRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Task assigned to sprint", taskService.assignToSprint(id, request)));
+    }
+
     @GetMapping("/{id}/recommendations")
     @PreAuthorize("hasAuthority('" + PermissionNames.ASSIGN_TASK + "')")
     @Operation(summary = "Smart assignment recommendations",
@@ -110,6 +119,14 @@ public class TaskController {
                     + "assigned until you call /assign.")
     public ResponseEntity<ApiResponse<List<TaskAssignmentRecommendation>>> recommendations(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(taskService.recommendAssignees(id)));
+    }
+
+    @GetMapping("/{id}/candidates")
+    @PreAuthorize("hasAuthority('" + PermissionNames.ASSIGN_TASK + "')")
+    @Operation(summary = "Assignment workspace candidates",
+            description = "Returns all eligible project members enriched with real-time workload, capacity, skills, and AI recommendation flags.")
+    public ResponseEntity<ApiResponse<List<com.teamflow.ai.project.client.AssignmentCandidateResponse>>> getAssignmentCandidates(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(taskService.getAssignmentCandidates(id)));
     }
 
     @PatchMapping("/{id}/assign")
@@ -122,6 +139,7 @@ public class TaskController {
     }
 
     @PostMapping("/{id}/comments")
+    @PreAuthorize("hasAuthority('" + com.teamflow.ai.common.constant.PermissionNames.UPDATE_TASK + "')")
     @Operation(summary = "Add a comment")
     public ResponseEntity<ApiResponse<TaskCommentResponse>> addComment(
             @PathVariable UUID id, @Valid @RequestBody AddTaskCommentRequest request) {
@@ -144,6 +162,7 @@ public class TaskController {
     }
 
     @PostMapping("/{id}/attachments")
+    @PreAuthorize("hasAuthority('" + com.teamflow.ai.common.constant.PermissionNames.UPDATE_TASK + "')")
     @Operation(summary = "Record an attachment's metadata",
             description = "No file content is uploaded through this API; the client uploads the file elsewhere "
                     + "and records the resulting URL here.")
@@ -166,5 +185,28 @@ public class TaskController {
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         taskService.delete(id);
         return ResponseEntity.ok(ApiResponse.success("Task removed", null));
+    }
+
+    @PostMapping("/{id}/dependencies/{dependsOnId}")
+    @PreAuthorize("hasAuthority('" + PermissionNames.UPDATE_TASK + "')")
+    @Operation(summary = "Add a task dependency", description = "Marks that this task cannot be completed until the dependsOn task is DONE")
+    public ResponseEntity<ApiResponse<TaskDependencyResponse>> addDependency(
+            @PathVariable UUID id, @PathVariable UUID dependsOnId) {
+        return ResponseEntity.ok(ApiResponse.success("Dependency added", taskService.addDependency(id, dependsOnId)));
+    }
+
+    @DeleteMapping("/{id}/dependencies/{dependsOnId}")
+    @PreAuthorize("hasAuthority('" + PermissionNames.UPDATE_TASK + "')")
+    @Operation(summary = "Remove a task dependency")
+    public ResponseEntity<ApiResponse<Void>> removeDependency(
+            @PathVariable UUID id, @PathVariable UUID dependsOnId) {
+        taskService.removeDependency(id, dependsOnId);
+        return ResponseEntity.ok(ApiResponse.success("Dependency removed", null));
+    }
+
+    @GetMapping("/{id}/dependencies")
+    @Operation(summary = "List task dependencies")
+    public ResponseEntity<ApiResponse<List<TaskDependencyResponse>>> listDependencies(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(taskService.listDependencies(id)));
     }
 }

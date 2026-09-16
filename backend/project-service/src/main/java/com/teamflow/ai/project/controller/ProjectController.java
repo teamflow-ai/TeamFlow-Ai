@@ -4,8 +4,11 @@ import com.teamflow.ai.common.constant.PermissionNames;
 import com.teamflow.ai.common.dto.ApiResponse;
 import com.teamflow.ai.common.dto.PageResponse;
 import com.teamflow.ai.common.enums.ProjectStatus;
+import com.teamflow.ai.common.security.SecurityUtils;
+import com.teamflow.ai.project.approval.dto.ApprovalResponse;
 import com.teamflow.ai.project.dto.request.AddProjectMemberRequest;
 import com.teamflow.ai.project.dto.request.CreateProjectRequest;
+import com.teamflow.ai.project.dto.request.RemarksRequest;
 import com.teamflow.ai.project.dto.request.UpdateProjectRequest;
 import com.teamflow.ai.project.dto.request.UpdateProjectStatusRequest;
 import com.teamflow.ai.project.dto.response.ProjectResponse;
@@ -97,6 +100,18 @@ public class ProjectController {
     public ResponseEntity<ApiResponse<ProjectResponse>> removeMember(
             @PathVariable UUID id, @PathVariable UUID employeeId) {
         return ResponseEntity.ok(ApiResponse.success("Member removed", projectService.removeMember(id, employeeId)));
+    }
+
+    @PostMapping("/{id}/request-closure")
+    @PreAuthorize("hasAuthority('" + PermissionNames.REQUEST_PROJECT_CLOSURE + "')")
+    @Operation(summary = "Request project closure",
+            description = "Opens a PROJECT_CLOSURE approval request; an admin decides via /api/v1/approvals/{id}/decide.")
+    public ResponseEntity<ApiResponse<ApprovalResponse>> requestClosure(
+            @PathVariable UUID id, @RequestBody(required = false) RemarksRequest request) {
+        String remarks = request != null ? request.remarks() : null;
+        ApprovalResponse response =
+                projectService.requestClosure(id, SecurityUtils.requireCurrentEmployeeId(), remarks);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created("Closure requested", response));
     }
 
     @DeleteMapping("/{id}")

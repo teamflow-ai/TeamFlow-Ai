@@ -30,7 +30,7 @@ public class TaskMapper {
                 .estimatedHours(task.getEstimatedHours())
                 .actualHours(task.getActualHours())
                 .assignmentMode(task.getAssignmentMode())
-                .requiredSkills(task.getRequiredSkills())
+                .requiredSkills(task.getRequiredSkills() != null ? new java.util.LinkedHashSet<>(task.getRequiredSkills()) : java.util.Collections.emptySet())
                 .overdue(task.isOverdue())
                 .build();
     }

@@ -19,13 +19,16 @@ public record EmployeeEvent(
         String email,
         String fullName,
         UUID departmentId,
+        UUID primaryTeamId,
+        Set<UUID> secondaryTeamIds,
         Set<String> skills,
         Integer weeklyCapacityHours) implements DomainEvent {
 
     public static EmployeeEvent of(String routingKey, UUID employeeId, String email,
-                                   String fullName, UUID departmentId, Set<String> skills,
-                                   Integer weeklyCapacityHours) {
+                                   String fullName, UUID departmentId, 
+                                   UUID primaryTeamId, Set<UUID> secondaryTeamIds,
+                                   Set<String> skills, Integer weeklyCapacityHours) {
         return new EmployeeEvent(UUID.randomUUID(), Instant.now(), routingKey,
-                employeeId, email, fullName, departmentId, skills, weeklyCapacityHours);
+                employeeId, email, fullName, departmentId, primaryTeamId, secondaryTeamIds, skills, weeklyCapacityHours);
     }
 }

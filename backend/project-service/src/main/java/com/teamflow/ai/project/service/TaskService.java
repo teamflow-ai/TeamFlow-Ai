@@ -34,7 +34,11 @@ public interface TaskService {
 
     TaskResponse assign(UUID id, AssignTaskRequest request);
 
+    TaskResponse assignToSprint(UUID id, com.teamflow.ai.project.dto.request.AssignSprintRequest request);
+
     List<TaskAssignmentRecommendation> recommendAssignees(UUID id);
+
+    List<com.teamflow.ai.project.client.AssignmentCandidateResponse> getAssignmentCandidates(UUID id);
 
     TaskCommentResponse addComment(UUID id, AddTaskCommentRequest request, UUID authorId);
 
@@ -47,4 +51,10 @@ public interface TaskService {
     List<TaskAttachmentResponse> listAttachments(UUID id);
 
     void delete(UUID id);
+
+    com.teamflow.ai.project.dto.response.TaskDependencyResponse addDependency(UUID taskId, UUID dependsOnTaskId);
+
+    void removeDependency(UUID taskId, UUID dependsOnTaskId);
+
+    List<com.teamflow.ai.project.dto.response.TaskDependencyResponse> listDependencies(UUID taskId);
 }

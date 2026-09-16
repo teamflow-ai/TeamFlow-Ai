@@ -1,0 +1,122 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: ai-service
+
+  # No relational datasource: this service is MongoDB-only by design.
+  data:
+    mongodb:
+      uri: mongodb://127.0.0.1:27017/teamflow_ai
+      auto-index-creation: true
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 2s
+          max-attempts: 3
+          multiplier: 2.0
+        default-requeue-rejected: false
+
+  cache:
+    type: redis
+
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:false}
+          starttls:
+            enable: ${SMTP_STARTTLS:false}
+        # A slow or unreachable SMTP host must never hang a request thread;
+        # notifications are still delivered in-app even if email times out.
+        connectiontimeout: 3000
+        timeout: 3000
+        writetimeout: 3000
+
+teamflow:
+  jwt:
+    secret: ${TEAMFLOW_JWT_SECRET:4Fv8Qn7LpX2mRs9ZaB6KdE1WtY5UhJ3NcP8GxL0VmR2QaF7S}
+    issuer: teamflow.ai
+  ai:
+    # `rule-based` ships as the default: deterministic, explainable and
+    # demo-safe. Swap to gemini / openai / claude here — no feature code changes,
+    # since every business service depends on the AiProvider interface, never a
+    # concrete class. Whichever is NOT selected here simply never instantiates
+    # its RestClient, so an unset API key for an inactive provider is harmless.
+    provider: ${TEAMFLOW_AI_PROVIDER:rule-based}
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      # model: gemini-2.0-flash
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      # model: gpt-4o-mini
+    claude:
+      api-key: ${ANTHROPIC_API_KEY:}
+      # model: claude-haiku-4-5-20251001
+  mail:
+    from: ${MAIL_FROM:noreply@teamflow.ai}
+  # Every coefficient the workload scorer uses is configurable here rather than
+  # hard-coded — see WorkloadProperties for what each one controls. The values
+  # below are the shipped defaults; only uncomment a line to override it.
+  workload:
+    # task-weight: 8.0
+    # priority-weight: 3.0
+    # overdue-penalty: 15.0
+    # hours-weight: 1.2
+    # bug-severity-weight: 4.0
+    # max-score: 100.0
+    # default-weekly-capacity-hours: 40
+    # overload-threshold: 75.0
+    # high-priority-task-alert-threshold: 3
+    # deadline-warning-days: 3
+    # recommendation-limit: 5
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+logging:
+  level:
+    com.teamflow.ai: DEBUG
+    org.springframework.data.mongodb: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  data:
+    mongodb:
+      uri: mongodb://mongodb:27017/teamflow_ai
+    redis:
+      host: redis
+  rabbitmq:
+    host: rabbitmq
+eureka:
+  client:
+    service-url:
+      defaultZone: http://service-registry:8761/eureka/

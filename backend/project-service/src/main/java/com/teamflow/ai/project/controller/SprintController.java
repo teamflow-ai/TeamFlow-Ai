@@ -63,6 +63,12 @@ public class SprintController {
         return ResponseEntity.ok(ApiResponse.success(sprintService.get(id)));
     }
 
+    @GetMapping("/{id}/capacity-report")
+    @Operation(summary = "Get sprint capacity report", description = "Calculates total estimated hours vs team capacity")
+    public ResponseEntity<ApiResponse<com.teamflow.ai.project.dto.response.SprintCapacityReport>> getCapacityReport(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(sprintService.getCapacityReport(id)));
+    }
+
     @GetMapping
     @Operation(summary = "List sprints for a project")
     public ResponseEntity<ApiResponse<PageResponse<SprintResponse>>> list(

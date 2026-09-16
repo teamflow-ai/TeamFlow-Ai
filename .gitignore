@@ -1,0 +1,13 @@
+.idea/
+node_modules/
+dist/
+build/
+target/
+.env
+.env.local
+local-mongo/
+*.log
+*.class
+*.jar
+*.war
+.DS_Store
